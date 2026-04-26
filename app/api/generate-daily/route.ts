@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { revalidatePath } from "next/cache";
 import { getServiceClient } from "@/lib/supabase";
 
 const anthropic = new Anthropic();
@@ -68,6 +69,8 @@ export async function GET(request: Request) {
     });
 
     if (error) throw error;
+
+    revalidatePath("/");
 
     return Response.json({
       message: `Generated daily idea: ${activity.name}`,

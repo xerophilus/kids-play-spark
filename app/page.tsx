@@ -4,6 +4,8 @@ import { EmailForm } from "./components/email-form";
 import { GenerateForm } from "./components/generate-form";
 import type { Activity } from "@/lib/types";
 
+export const revalidate = 60;
+
 async function getTodaysIdea(): Promise<Activity | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
