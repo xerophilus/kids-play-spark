@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +18,10 @@ export async function POST(request: Request) {
       }
       throw error;
     }
+
+    const posthog = getPostHogClient();
+    posthog.identify({ distinctId: email });
+    posthog.capture({ distinctId: email, event: "waitlist_signup_server", properties: { source: "api" } });
 
     return Response.json({ message: "You're in! We'll send you fresh ideas soon." });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { getServiceClient } from "@/lib/supabase";
 import { Resend } from "resend";
 import type { Activity } from "@/lib/types";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
@@ -192,6 +193,19 @@ export async function GET(request: Request) {
         errors.push(`${subscriber.email}: ${err instanceof Error ? err.message : "unknown error"}`);
       }
     }
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: "cron",
+      event: "daily_emails_sent",
+      properties: {
+        sent,
+        total: subscribers.length,
+        failed: errors.length,
+        activity_name: activity.name,
+        date: today,
+      },
+    });
 
     return Response.json({
       message: `Sent ${sent} of ${subscribers.length} emails`,

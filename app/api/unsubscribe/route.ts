@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -21,6 +22,9 @@ export async function GET(request: Request) {
       .eq("email", decoded);
 
     if (error) throw error;
+
+    const posthog = getPostHogClient();
+    posthog.capture({ distinctId: decoded, event: "user_unsubscribed" });
 
     return new Response(
       unsubscribePage("You've been unsubscribed. Sorry to see you go!", true),

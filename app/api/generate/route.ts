@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { GenerateRequest } from "@/lib/types";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const anthropic = new Anthropic();
 
@@ -30,6 +31,8 @@ You MUST respond with valid JSON only, no markdown formatting, no code fences. R
 }`;
 
 export async function POST(request: Request) {
+  const distinctId = request.headers.get("X-POSTHOG-DISTINCT-ID") || "anonymous";
+
   try {
     const body: GenerateRequest = await request.json();
     const { child_age, setting, time_available, energy_level, materials_on_hand } = body;
@@ -59,6 +62,21 @@ Remember: be SPECIFIC and CREATIVE. No generic suggestions. This should make a p
     }
 
     const activity = JSON.parse(textBlock.text);
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId,
+      event: "activity_generated_server",
+      properties: {
+        child_age,
+        setting,
+        time_available,
+        energy_level,
+        has_materials: !!materials_on_hand,
+        activity_name: activity.name,
+      },
+    });
+
     return Response.json(activity);
   } catch (error) {
     console.error("Generation error:", error);

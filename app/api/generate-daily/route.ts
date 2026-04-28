@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { getServiceClient } from "@/lib/supabase";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const anthropic = new Anthropic();
 
@@ -71,6 +72,18 @@ export async function GET(request: Request) {
     if (error) throw error;
 
     revalidatePath("/");
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: "cron",
+      event: "daily_idea_generated",
+      properties: {
+        activity_name: activity.name,
+        setting: activity.setting,
+        energy_level: activity.energy_level,
+        date: today,
+      },
+    });
 
     return Response.json({
       message: `Generated daily idea: ${activity.name}`,

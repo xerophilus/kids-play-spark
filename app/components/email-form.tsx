@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import posthog from "posthog-js";
 
 export function EmailForm() {
   const [email, setEmail] = useState("");
@@ -25,10 +26,14 @@ export function EmailForm() {
         return;
       }
 
+      posthog.identify(email, { email });
+      posthog.capture("waitlist_signup", { source: "hero" });
+
       setStatus("success");
       setMessage(data.message);
       setEmail("");
-    } catch {
+    } catch (err) {
+      posthog.captureException(err);
       setStatus("error");
       setMessage("Something went wrong. Please try again.");
     }

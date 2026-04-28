@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import posthog from "posthog-js";
 import type { Activity } from "@/lib/types";
 import { ActivityCard } from "./activity-card";
 
@@ -105,6 +106,15 @@ export function GenerateForm() {
     if (state.count >= currentLimit) {
       if (!state.signedUp) {
         setShowWall(true);
+        posthog.capture("generation_limit_reached", {
+          limit_type: "free",
+          limit: FREE_LIMIT,
+        });
+      } else {
+        posthog.capture("generation_limit_reached", {
+          limit_type: "signed_up",
+          limit: SIGNED_UP_LIMIT,
+        });
       }
       refreshState();
       return;
@@ -118,7 +128,10 @@ export function GenerateForm() {
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-POSTHOG-DISTINCT-ID": posthog.get_distinct_id() ?? "",
+        },
         body: JSON.stringify({
           child_age: age,
           setting,
@@ -134,6 +147,15 @@ export function GenerateForm() {
       incrementCount();
       refreshState();
 
+      posthog.capture("activity_generated", {
+        child_age: age,
+        setting,
+        time_available: time,
+        energy_level: energy,
+        has_materials: !!materials,
+        activity_name: data.name,
+      });
+
       // Show wall instead of result if they just hit the free limit
       const newState = getGenerationState();
       if (!newState.signedUp && newState.count >= FREE_LIMIT) {
@@ -141,7 +163,8 @@ export function GenerateForm() {
       } else {
         setActivity(data);
       }
-    } catch {
+    } catch (err) {
+      posthog.captureException(err);
       setError("Couldn't generate an activity. Please try again.");
     } finally {
       setLoading(false);
@@ -167,13 +190,17 @@ export function GenerateForm() {
         return;
       }
 
+      posthog.identify(wallEmail, { email: wallEmail });
+      posthog.capture("waitlist_signup_from_wall", { source: "generation_wall" });
+
       markSignedUp();
       refreshState();
       setWallStatus("success");
       setWallMessage("You're in! You now get 5 ideas per day.");
       setShowWall(false);
       setWallEmail("");
-    } catch {
+    } catch (err) {
+      posthog.captureException(err);
       setWallStatus("error");
       setWallMessage("Something went wrong. Please try again.");
     }
