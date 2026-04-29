@@ -22,7 +22,18 @@ async function getTodaysIdea(): Promise<Activity | null> {
     .limit(1)
     .single();
 
-  return data?.idea_json ?? null;
+  if (data?.idea_json) return data.idea_json;
+
+  // Fall back to the most recent idea when today's hasn't been generated yet
+  // (cron runs at 10:30 UTC, so there's a gap from midnight UTC until then)
+  const { data: fallback } = await supabase
+    .from("daily_ideas")
+    .select("idea_json")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  return fallback?.idea_json ?? null;
 }
 
 export default async function Home() {
