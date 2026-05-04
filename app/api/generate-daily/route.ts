@@ -44,6 +44,21 @@ export async function GET(request: Request) {
     const energy = energies[Math.floor(Math.random() * energies.length)];
     const time = [30, 45, 60][Math.floor(Math.random() * 3)];
 
+    const { data: recentIdeas } = await supabase
+      .from("daily_ideas")
+      .select("idea_json")
+      .order("created_at", { ascending: false })
+      .limit(14);
+
+    const recentNames = (recentIdeas ?? [])
+      .map((row) => (row.idea_json as { name?: string })?.name)
+      .filter(Boolean);
+
+    const avoidClause =
+      recentNames.length > 0
+        ? ` Do NOT repeat or closely resemble any of these recent activities: ${recentNames.join(", ")}.`
+        : "";
+
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 1024,
@@ -51,7 +66,7 @@ export async function GET(request: Request) {
       messages: [
         {
           role: "user",
-          content: `Create a ${setting} activity for a ${age}-year-old child. Time available: ${time} minutes. Energy level: ${energy}. Use only common household items. Be SPECIFIC and CREATIVE.`,
+          content: `Create a ${setting} activity for a ${age}-year-old child. Time available: ${time} minutes. Energy level: ${energy}. Use only common household items. Be SPECIFIC and CREATIVE.${avoidClause}`,
         },
       ],
     });
